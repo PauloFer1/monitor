@@ -15,6 +15,7 @@ public class HealthChecker implements Runnable {
 
     // Todo, set this value in properties
     private static final String APP_URL = "https://pf-mailler.herokuapp.com/health";
+    private static final String SELF_APP_URL = "https://pf-monitor.herokuapp.com/health";
 
     private final RestTemplate restTemplate;
 
@@ -34,20 +35,22 @@ public class HealthChecker implements Runnable {
 
     @Override
     public void run() {
+        // Todo - implement a concurrent queue get the URL to use
+        String reqUrl = (Thread.currentThread().getId()%2 == 0) ? APP_URL : SELF_APP_URL;
         Health health = new Health();
         health.setStatus("UNKNOWN");
         try {
-            health = getAppHealth(APP_URL);
+            health = getAppHealth(reqUrl);
         } catch (Exception e) {
-            log.error("Impossible to get Health for: {}, reason: {}", APP_URL, e.getMessage());
+            log.error("Impossible to get Health for: {}, reason: {}", reqUrl, e.getMessage());
         }
-        log.info("Health for {}: {}", APP_URL, health.getStatus());
+        log.info("Health for {}: {}", reqUrl, health.getStatus());
         if (!health.getStatus().equals("UP")) {
             Email faillureEmaill = Email.builder()
                 .to("paulo.r.r.fernandes@gmail.com")
                 .from("pfernand.monitor@gmail.com")
-                .subject(String.format("PF-Monitor: %s is DOWN", APP_URL))
-                .body(String.format("PF-Monitor: %s is DOWN", APP_URL))
+                .subject(String.format("PF-Monitor: %s is DOWN", reqUrl))
+                .body(String.format("PF-Monitor: %s is DOWN", reqUrl))
                 .build();
             try {
                 maillerServiceSpring.sendSimpleMessage(faillureEmaill);
